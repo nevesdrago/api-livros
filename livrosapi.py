@@ -1,37 +1,29 @@
-# API de livros 
+# livrosapi.py
 
-# Import de todos os programas utilizados no projeto
-# FASTAPI, Pydantic, HTTPs, Secrets
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi import BackgroundTasks
 from tasks import calcular_soma, calcular_fatorial
 from pydantic import BaseModel
-from typing import Optional
-from kafka_producer import enviar_evento
 import secrets
 import os
-
-# Dotenv para lidar com variáveis de ambiente
 import dotenv
-dotenv.load_dotenv()
-
-# Redis para cache e processamento assíncrono
 import redis
 import json
 from celery_app import celery_app
 from celery.result import AsyncResult
-# Banco de dados SQLalchemy para lidar com SQLite
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
+# Carregar variáveis de ambiente
+dotenv.load_dotenv()
 
 app = FastAPI(
-    title= "API de Livros",
-    description= "API para gerenciar catálogo de livros",
-    version= "1.0.0",
-    contact= {
+    title="API de Livros",
+    description="API para gerenciar catálogo de livros",
+    version="1.0.0",
+    contact={
         "name": "Eduardo Drago",
         "email": "eduardondrago05@gmail.com"
     }
@@ -51,9 +43,7 @@ security = HTTPBasic()
 # Dicionário principal
 livros = {}
 
-
-
-# Classes Livro e LivroDB que servem de molde para a construção das informações dos livros
+# Classes Livro e LivroDB
 class LivroDB(Base):
     __tablename__ = "Livros"
     id = Column(Integer, primary_key=True, index=True)
@@ -75,8 +65,7 @@ def sessao_db():
     finally:
         db.close()
 
-
-# Função que implementa autenticação do usuário que deseja usar os endpoints
+# Autenticação básica
 def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
     MEU_USUARIO = os.getenv("MEU_USUARIO")
     MINHA_SENHA = os.getenv("MINHA_SENHA")
@@ -90,7 +79,6 @@ def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
             headers={"WWW-Authenticate": "Basic"}
         )
 
-
 # Métodos para salvar e deletar livros no Redis
 async def salvar_livros_redis(page: int, limit: int, livros: list):
     cache_key = f"livros:page={page}&limit={limit}"
@@ -99,7 +87,6 @@ async def salvar_livros_redis(page: int, limit: int, livros: list):
 async def deletar_livros_redis():
     for chave in redis_client.scan_iter("livros:page=*"):
         redis_client.delete(chave)
-
 
 # GET - Buscar dados dos livros
 @app.get("/livros")
@@ -131,8 +118,7 @@ async def get_livros(page: int = 1, limit: int = 10, db: Session = Depends(sessa
     
     return resposta
 
-
-# Retorna informações do cache do Redis
+# Debug Redis
 @app.get("/debug/redis")
 def ver_livros_redis():
     chaves = redis_client.keys("livros:*")
@@ -141,40 +127,34 @@ def ver_livros_redis():
     for chave in chaves:
         valor = redis_client.get(chave)
         ttl = redis_client.ttl(chave)
-
         livros.append({"chave": chave, "valor": json.loads(valor), "ttl": ttl})
 
     return livros
 
-
-# POST - Adicionar novos livros, BODY JSON
+# POST - Adicionar novos livros
 @app.post("/livros")
 async def post_livros(livro: Livro, db: Session = Depends(sessao_db), credentials: HTTPBasicCredentials = Depends(autenticar_usuario)):
     db_livro = db.query(LivroDB).filter(LivroDB.nome_livro == livro.nome_livro, LivroDB.autor_livro == livro.autor_livro).first()
     if db_livro:
         raise HTTPException(status_code=400, detail="Esse livro já existe no banco de dados!!!")
     
-    novo_livro = LivroDB(nome_livro = livro.nome_livro, autor_livro = livro.autor_livro, ano_livro = livro.ano_livro)
+    novo_livro = LivroDB(nome_livro=livro.nome_livro, autor_livro=livro.autor_livro, ano_livro=livro.ano_livro)
     db.add(novo_livro)
     db.commit()
     db.refresh(novo_livro)
 
     await deletar_livros_redis()
 
-    enviar_evento("livros_eventos", {"acao": "criar", "livro": livro.dict()})
-
     raise HTTPException(status_code=201, detail="Livro criado com sucesso!") 
 
-
-
+# Tarefas Celery
 @app.post("/calcular/soma")
-def somar(a: int, b:int ):
-    tarefa = calcular_soma.delay(a,b)
+def somar(a: int, b:int):
+    tarefa = calcular_soma.delay(a, b)
     return {
         "task_id": tarefa.id,
         "message": "Tarefa de soma enviada para execução!"
     }
-
 
 @app.post("/calcular/fatorial")
 def fatorial(a: int):
@@ -184,8 +164,17 @@ def fatorial(a: int):
         "message": "Tarefa fatorial enviada para execução!"
     }
 
+# Endpoint para consultar status/resultados de tasks
+@app.get("/tasks/{task_id}")
+def get_task_result(task_id: str):
+    result = AsyncResult(task_id, app=celery_app)
+    return {
+        "task_id": task_id,
+        "status": result.status,
+        "result": result.result if result.ready() else None
+    }
 
-# PUT - Atualizar informações dos livros, BODY JSON, ID
+# PUT - Atualizar livros
 @app.put("/livros/{id_livro}")
 async def put_livros(id_livro: int, livro: Livro, db: Session = Depends(sessao_db), credentials: HTTPBasicCredentials = Depends(autenticar_usuario)):
     db_livro = db.query(LivroDB).filter(LivroDB.id == id_livro).first()
@@ -200,10 +189,9 @@ async def put_livros(id_livro: int, livro: Livro, db: Session = Depends(sessao_d
 
     await deletar_livros_redis()
 
-    raise HTTPException(status_code=200, detail= "O livro foi atualizado com sucesso!")
+    raise HTTPException(status_code=200, detail="O livro foi atualizado com sucesso!")
 
-
-# DELETE - Deletar informações dos livros, ID     
+# DELETE - Deletar livros
 @app.delete("/livros/{id_livro}")
 async def delete_livro(id_livro: int, db: Session = Depends(sessao_db), HTTPBasicCredentials = Depends(autenticar_usuario)):
     db_livro = db.query(LivroDB).filter(LivroDB.id == id_livro).first()
@@ -217,5 +205,3 @@ async def delete_livro(id_livro: int, db: Session = Depends(sessao_db), HTTPBasi
     await deletar_livros_redis()
 
     raise HTTPException(status_code=204, detail="Livro deletado com sucesso!")
-
-
