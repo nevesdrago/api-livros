@@ -63,3 +63,7 @@ HTTP 200 retornará:
 	"task_id": "cc65bdf5-6d7f-4c04-a679-8fa701180fe5",
 	"message": "Tarefa de soma enviada para execução!"
 }
+
+Depois:
+
+Checar endpoint (ou log do celery) Resultado Celery para resultado das tarefas

@@ -22,7 +22,7 @@ services:
   celery:
     build: .
     container_name: livros-celery
-    command: ["poetry", "run", "celery", "-A", "celery_app:celery_app", "worker", "-Q", "livros", "--loglevel=info"]
+    command: celery -A tasks worker --loglevel=info
     depends_on:
       - redis
     env_file:
