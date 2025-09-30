@@ -3,6 +3,8 @@ from livrosapi import app
 import os 
 import pytest
 
+os.environ["DATABASE_URL"] = "sqlite:///./test.db"
+
 client = TestClient(app)
 
 os.environ["MEU_USUARIO"] = "admin"
@@ -37,4 +39,5 @@ def test_autenticacao_senha_com_erro():
     )
 
     assert response.status_code == 401
+
     assert response.json()["detail"] == "Usuário ou senha incorretos."
