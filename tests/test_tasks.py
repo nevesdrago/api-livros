@@ -1,4 +1,4 @@
-from src.tasks import calcular_fatorial, calcular_soma
+from tasks import calcular_fatorial, calcular_soma
 import pytest
 
 def test_calcular_soma_retorna_soma():
@@ -12,5 +12,6 @@ def test_calcular_fatorial_retorna_fatorial():
 def test_calcular_fatorial_zero():
     resultado = calcular_fatorial.apply(args=[0]).get()
     assert resultado == 1
+
 
 
