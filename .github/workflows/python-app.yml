@@ -34,6 +34,9 @@ jobs:
       run: |
         poetry install --no-root --no-interaction
 
+    - name: Add repo root to PYTHONPATH
+      run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
+
     - name: Rodar Testes 
       run: | 
         poetry run pytest
