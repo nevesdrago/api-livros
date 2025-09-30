@@ -13,5 +13,3 @@ def test_calcular_fatorial_zero():
     resultado = calcular_fatorial.apply(args=[0]).get()
     assert resultado == 1
 
-
-
