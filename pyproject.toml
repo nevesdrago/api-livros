@@ -23,4 +23,5 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.group.dev.dependencies]
 pytest-mock = "^3.15.1"
+httpx = "^0.28.1"
 
