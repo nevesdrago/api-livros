@@ -1,9 +1,10 @@
 from fastapi.testclient import TestClient
-from livrosapi import app
 import os 
+os.environ["DATABASE_URL"] = "sqlite:///./test.db"
+from livrosapi import app
 import pytest
 
-os.environ["DATABASE_URL"] = "sqlite:///./test.db"
+
 
 client = TestClient(app)
 
@@ -41,3 +42,4 @@ def test_autenticacao_senha_com_erro():
     assert response.status_code == 401
 
     assert response.json()["detail"] == "Usuário ou senha incorretos."
+
