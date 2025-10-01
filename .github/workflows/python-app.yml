@@ -40,3 +40,7 @@ jobs:
     - name: Rodar Testes 
       run: | 
         poetry run pytest
+
+    - name: Build Imagem Docker
+      run : |
+        docker build -t fastapi-app:latest
